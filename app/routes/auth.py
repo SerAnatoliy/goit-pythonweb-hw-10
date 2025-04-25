@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
+from fastapi_limiter.depends import RateLimiter 
 
 from app.services.auth import (
     create_access_token,
@@ -44,7 +45,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.get("/me", response_model=schemas.UserResponse)
+@router.get("/me", response_model=schemas.UserResponse, dependencies=[Depends(RateLimiter(times=5, seconds=60))])
 def read_users_me(current_user: schemas.UserResponse = Depends(get_current_user)):
     return current_user
 
