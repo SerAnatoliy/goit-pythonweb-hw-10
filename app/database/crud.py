@@ -1,29 +1,56 @@
 from sqlalchemy.orm import Session
-from app.database.models import Contact
-from app.database.schemas import ContactCreate, ContactUpdate
+from app.database.models import Contact, User
+from app.database.schemas import (
+    ContactCreate, ContactUpdate,
+    UserCreate, UserResponse
+)
+from app.services.security import hash_password, verify_password as verify_password_service  # Оновлюємо імпорт
 
-def get_contacts(db: Session):
-    return db.query(Contact).all()
+def create_user(db: Session, user: UserCreate) -> UserResponse:
+    hashed_password = hash_password(user.password)
+    db_user = User(
+        username=user.username,
+        email=user.email,
+        password_hash=hashed_password
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
 
-def get_contact_by_id(db: Session, contact_id: int):
-    return db.query(Contact).filter(Contact.id == contact_id).first()
+    return UserResponse(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        is_verified=db_user.is_verified,
+        avatar_url=db_user.avatar_url,
+        created_at=db_user.created_at,
+        updated_at=db_user.updated_at
+    )
 
-def create_contact(db: Session, contact: ContactCreate):
+def get_user_by_email(db: Session, email: str):
+    return db.query(User).filter(User.email == email).first()
+
+def get_user_by_id(db: Session, user_id: int):
+    return db.query(User).filter(User.id == user_id).first()
+
+def create_contact(db: Session, contact: ContactCreate, user_id: int):
     db_contact = Contact(
-        first_name=contact.first_name,
-        last_name=contact.last_name,
-        email=contact.email,
-        phone=contact.phone,
-        birthday=contact.birthday,
-        extra_info=contact.extra_info
+        **contact.dict(),
+        user_id=user_id
     )
     db.add(db_contact)
     db.commit()
     db.refresh(db_contact)
     return db_contact
 
-def update_contact(db: Session, contact_id: int, contact: ContactUpdate):
-    db_contact = db.query(Contact).filter(Contact.id == contact_id).first()
+def get_contacts(db: Session, user_id: int):
+    return db.query(Contact).filter(Contact.user_id == user_id).all()
+
+def get_contact_by_id(db: Session, contact_id: int, user_id: int):
+    return db.query(Contact).filter(Contact.id == contact_id, Contact.user_id == user_id).first()
+
+def update_contact(db: Session, contact_id: int, contact: ContactUpdate, user_id: int):
+    db_contact = db.query(Contact).filter(Contact.id == contact_id, Contact.user_id == user_id).first()
     if db_contact:
         for key, value in contact.dict(exclude_unset=True).items():
             setattr(db_contact, key, value)
@@ -31,9 +58,12 @@ def update_contact(db: Session, contact_id: int, contact: ContactUpdate):
         db.refresh(db_contact)
     return db_contact
 
-def delete_contact(db: Session, contact_id: int):
-    db_contact = db.query(Contact).filter(Contact.id == contact_id).first()
+def delete_contact(db: Session, contact_id: int, user_id: int):
+    db_contact = db.query(Contact).filter(Contact.id == contact_id, Contact.user_id == user_id).first()
     if db_contact:
         db.delete(db_contact)
         db.commit()
     return db_contact
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return verify_password_service(plain_password, hashed_password)
