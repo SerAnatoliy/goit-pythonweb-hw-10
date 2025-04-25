@@ -29,3 +29,7 @@ from app.database import models
 async def init_limiter():
     redis = await aioredis.from_url(REDIS_URL)
     await FastAPILimiter.init(redis)
+
+AVATAR_STORAGE_PATH = os.getenv("AVATAR_STORAGE_PATH", "app/static/avatars")
+
+os.makedirs(AVATAR_STORAGE_PATH, exist_ok=True)

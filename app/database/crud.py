@@ -67,3 +67,9 @@ def delete_contact(db: Session, contact_id: int, user_id: int):
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return verify_password_service(plain_password, hashed_password)
+
+def update_avatar(db: Session, user: User, avatar_path: str):
+    user.avatar_url = avatar_path
+    db.commit()
+    db.refresh(user)
+    return user
